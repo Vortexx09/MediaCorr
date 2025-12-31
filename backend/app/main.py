@@ -1,33 +1,37 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.ingestor import ingest_source
-from app.sources import RSS_SOURCES
+from app.config.colombian_domains import COLOMBIAN_DOMAINS
+from app.sources import collect_records, download_records
+from app.ingestor import extract_html_many, parse_html_many, process_and_save
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.post("/filter")
+def filter_news(from_year: int = 2024):
+    domain = COLOMBIAN_DOMAINS
+    result = collect_records(domain, from_year, max_records=5)
+    
+    return result
 
-@app.get("/")
-def read_root():
-    return {"message":"Backend FastAPI funcionando"}
+@app.post("/download")
+def download_news():
+    records = collect_records(
+        COLOMBIAN_DOMAINS,
+        from_year=2024,
+        max_records=50
+    )
 
-@app.post("/ingest")
-def ingest_news(sources: list[str]):
-    all_articles = []
-
-    for source in sources:
-        rss_url = RSS_SOURCES.get(source)
-        if rss_url:
-            articles = ingest_source(source, rss_url)
-            all_articles.extend(articles)
+    downloaded_files = download_records(
+        records,
+        max_workers=5
+    )
 
     return {
-        "count": len(all_articles),
-        "data" : all_articles,
+        "records_found": len(records),
+        "downloaded": len(downloaded_files)
     }
+
+@app.post("/process") 
+def process_news( warc_dir: str = "data/raw", output_dir: str = "data/news", max_workers: int = 5 ): 
+    process_and_save(warc_dir, output_dir=output_dir, max_workers=max_workers) 
+    
+    return { "status": "ok", "message": f"Archivos procesados desde {warc_dir} y guardados en {output_dir}" }
