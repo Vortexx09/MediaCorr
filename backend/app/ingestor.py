@@ -46,26 +46,32 @@ def parse_html(html: str, fallback_date=None):
     try:
         doc = Document(html)
         cleaned_html = doc.summary(html_partial=True)
-    except Exception as e:
-        print(f"[WARN] Readability falló: {e}")
-        cleaned_html = html  # fallback: usar HTML original
+    except Exception:
+        cleaned_html = html
 
     soup = BeautifulSoup(cleaned_html, "lxml")
 
-    # título
-    title = None
-    if soup.title:
-        title = soup.title.get_text(strip=True)
-    elif soup.find("h1"):
-        title = soup.find("h1").get_text(strip=True)
+    # Preferir contenedores de artículo si existen
+    article = soup.find("article") or soup.find("div", class_=lambda c: c and ("article" in c or "content" in c))
+    root = article or soup
 
-    # párrafos
+    title = None
+    if root.find("h1"):
+        title = root.find("h1").get_text(strip=True)
+    elif soup.title:
+        title = soup.title.get_text(strip=True)
+
     paragraphs = []
-    for p in soup.find_all("p"):
+    for p in root.find_all("p"):
         text = p.get_text(strip=True)
-        if len(text) > 40:
+        if len(text) >= 60 and not text.isupper():
             paragraphs.append(text)
+
     body = "\n".join(paragraphs) if paragraphs else None
+
+    # Si no hay contenido sustantivo, descartar temprano
+    if not body or (title and len(body.split()) < 60):
+        return {"title": title, "body": None, "published_date": fallback_date}
 
     # fecha
     published_date = None

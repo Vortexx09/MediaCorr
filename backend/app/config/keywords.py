@@ -1,8 +1,9 @@
 KEYWORDS = [
     "peso colombiano",
-    "COP",
     "dólar",
+    "dólares",
     "inflación",
     "tasa de cambio",
-    "banco de la república"
+    "banco de la república",
+    "divisa",
 ]

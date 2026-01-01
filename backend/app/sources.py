@@ -12,8 +12,8 @@ def search_cc_index(domain, from_year, max_records=5):
     results = []
 
     params = {
-        "url": f"{domain}/*economia*",
-        "matchType": "domain",
+        "url": f"{domain}/",
+        "matchType": "prefix",
         "from": str(from_year),
         "output": "json"
     }
