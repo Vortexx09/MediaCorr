@@ -3,21 +3,58 @@ import json
 from app.config.keywords import KEYWORDS
 from concurrent.futures import ThreadPoolExecutor, as_completed  
 
-def filter_news(parsed_records, keywords=KEYWORDS):
+import unicodedata
+import re
+
+
+def normalize_text(text: str) -> str:
+    text = text.lower()
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return text
+
+
+def tokenize(text: str) -> set:
+    return set(re.findall(r"\b[a-záéíóúñ]+\b", text))
+
+
+def filter_news(parsed_records, keywords=KEYWORDS, min_words=20):
     filtered = []
+
+    norm_keywords = [normalize_text(k) for k in keywords]
+
     for record in parsed_records:
-        body = record.get("body")
-        title = record.get("title")
-        if not body or len(body.split()) < 60:
+        title = record.get("title") or ""
+        body = record.get("body") or ""
+
+        if not body:
             continue
-        text = f"{title or ''} {body}"
-        if any(kw.lower() in text.lower() for kw in keywords):
+
+        if len(body.split()) < min_words:
+            continue
+
+        text = f"{title} {body}"
+        norm_text = normalize_text(text)
+        tokens = tokenize(norm_text)
+
+        match_score = 0
+
+        for kw in norm_keywords:
+            kw_tokens = tokenize(kw)
+
+            # Coincidencia parcial (morfología básica)
+            if any(t.startswith(k) or k.startswith(t) for t in tokens for k in kw_tokens):
+                match_score += 1
+
+        # Umbral flexible
+        if match_score >= 1:
+            record["_filter_score"] = match_score
             filtered.append(record)
+
     print(f"[INFO] Filtradas {len(filtered)} noticias de {len(parsed_records)}")
     return filtered
 
-
-def filter_from_files(fname, input_dir="data/news", output_dir="data/filtered", keywords=KEYWORDS):
+def filter_from_files(fname, input_dir="data/parsed", output_dir="data/filtered", keywords=KEYWORDS):
     path = os.path.join(input_dir, fname)
     with open(path, "r", encoding="utf-8") as f:
         parsed_records = json.load(f)
@@ -33,7 +70,7 @@ def filter_from_files(fname, input_dir="data/news", output_dir="data/filtered", 
     else:
         return fname, 0
 
-def filter_many(input_dir="data/news", output_dir="data/filtered", max_workers=5):
+def filter_many(input_dir="data/parsed", output_dir="data/filtered", max_workers=5):
     os.makedirs(output_dir, exist_ok=True) 
     
     files = [f for f in os.listdir(input_dir) if f.endswith(".json")] 
