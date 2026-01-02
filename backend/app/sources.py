@@ -107,3 +107,21 @@ def download_records(records, max_workers=5):
     print(f"Descarga completada en {end - start:.2f} segundos")
 
     return downloaded
+
+def download_sources():
+    records = collect_records(
+        COLOMBIAN_DOMAINS,
+        from_year=2024,
+        to_year=2025,
+        max_records=100
+    )
+
+    downloaded_files = download_records(
+        records,
+        max_workers=5
+    )
+
+    return {
+        "records_found": len(records),
+        "downloaded": len(downloaded_files)
+    }

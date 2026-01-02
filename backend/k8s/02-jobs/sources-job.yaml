@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sources-job
+  namespace: mediacorr
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: sources
+        image: mediacorr-sources:latest
+        imagePullPolicy: IfNotPresent
+        command: ["python", "-m", "app.sources"]
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: mediacorr-pvc

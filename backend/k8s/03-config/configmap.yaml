@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mediacorr-config
+  namespace: mediacorr
+data:
+  MAX_WORKERS: "5"
+  FROM_YEAR: "2024"
+  TO_YEAR: "2025"
