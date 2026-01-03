@@ -90,3 +90,14 @@ def filter_many(input_dir="data/parsed", output_dir="data/filtered", max_workers
                     print(f"[{i}/{total}] Procesado {result[0]} → sin coincidencias, no se guardó archivo")
             except Exception as e:
                 print(f"[{i}/{total}] Error en {fname}: {e}")
+
+if __name__ == "__main__":
+    print("[FILTER] Starting filtering stage")
+
+    filter_many(
+        input_dir="data/parsed",
+        output_dir="data/filtered",
+        max_workers=5
+    )
+
+    print("[FILTER] Filtering completed")

@@ -125,3 +125,24 @@ def download_sources():
         "records_found": len(records),
         "downloaded": len(downloaded_files)
     }
+
+if __name__ == "__main__":
+    from app.config.colombian_domains import COLOMBIAN_DOMAINS
+
+    print("[SOURCES] Starting news collection")
+
+    records = collect_records(
+        domains=COLOMBIAN_DOMAINS,
+        from_year=2024,
+        to_year=2025,
+        max_records=100
+    )
+
+    print(f"[SOURCES] Found {len(records)} records")
+
+    downloaded = download_records(
+        records,
+        max_workers=5
+    )
+
+    print(f"[SOURCES] Downloaded {len(downloaded)} files")

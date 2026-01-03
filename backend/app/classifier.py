@@ -116,3 +116,14 @@ def analyze_many(
                 print(f"[{i}/{total}] {fname} → {count} noticias clasificadas")
             except Exception as e:
                 print(f"[{i}/{total}] Error en {fname}: {e}")
+
+if __name__ == "__main__":
+    print("[CLASSIFIER] Starting sentiment analysis")
+
+    analyze_many(
+        input_dir="data/filtered",
+        output_dir="data/sentiment",
+        max_workers=4
+    )
+
+    print("[CLASSIFIER] Sentiment analysis completed")

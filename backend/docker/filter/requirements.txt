@@ -1,0 +1,2 @@
+regex==2025.11.3
+unicodedata2

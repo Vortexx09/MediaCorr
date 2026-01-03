@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mediacorr-api-binding
+  namespace: mediacorr
+subjects:
+- kind: ServiceAccount
+  name: mediacorr-api-sa
+  namespace: mediacorr
+roleRef:
+  kind: Role
+  name: mediacorr-api-role
+  apiGroup: rbac.authorization.k8s.io

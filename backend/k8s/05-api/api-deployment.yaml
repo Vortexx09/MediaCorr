@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mediacorr-api
+  namespace: mediacorr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mediacorr-api
+  template:
+    metadata:
+      labels:
+        app: mediacorr-api
+    spec:
+      serviceAccountName: mediacorr-api-sa
+      containers:
+      - name: api
+        image: mediacorr-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000

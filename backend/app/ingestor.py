@@ -197,3 +197,14 @@ def process_and_save(warc_dir, output_dir="data/news", max_workers=5):
             json.dump(parsed, f, ensure_ascii=False, indent=2)
 
         print(f"[INFO] Guardado en {output_file}")
+
+if __name__ == "__main__":
+    print("[INGESTOR] Starting ingestion process")
+
+    process_and_save(
+        warc_dir="data/raw",
+        output_dir="data/parsed",
+        max_workers=5
+    )
+
+    print("[INGESTOR] Ingestion completed")

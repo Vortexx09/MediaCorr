@@ -130,3 +130,16 @@ def run_full_analysis(
         json.dump(report, f, indent=2)
 
     return report
+
+if __name__ == "__main__":
+    print("[CORRELATOR] Starting correlation analysis")
+
+    report = run_full_analysis(
+        sentiment_dir="data/sentiment",
+        icolcap_csv="data/market/icolcap.csv",
+        output_dir="data/analysis",
+        max_lag=5
+    )
+
+    print("[CORRELATOR] Analysis completed")
+    print(report)

@@ -1,0 +1,6 @@
+beautifulsoup4==4.14.3
+readability-lxml==0.8.4.1
+warcio==1.7.5
+python-dateutil==2.9.0.post0
+lxml==6.0.2
+requests==2.32.5
