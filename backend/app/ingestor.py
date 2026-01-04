@@ -9,6 +9,16 @@ from dateutil import parser as date_parser
 from warcio.archiveiterator import ArchiveIterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# ------------------ K8s PARALLELISM ------------------
+
+JOB_INDEX = int(os.environ.get("JOB_COMPLETION_INDEX", "0"))
+JOB_TOTAL = int(os.environ.get("JOB_COMPLETIONS", "1"))
+
+
+def split_work(items, index, total):
+    return [item for i, item in enumerate(items) if i % total == index] 
+
+
 def extract_html(warc_path):
     extracted = []
 
@@ -178,25 +188,38 @@ def parse_html_many(html_records, max_workers=5):
 
     return parsed
 
-def process_and_save(warc_dir, output_dir="data/news", max_workers=5):
+def process_and_save(warc_dir, output_dir="data/parsed", max_workers=5):
     os.makedirs(output_dir, exist_ok=True)
 
-    warc_paths = [
+    warc_paths = sorted([
         os.path.join(warc_dir, fname)
         for fname in os.listdir(warc_dir)
-        if fname.lower().endswith(".warc") or fname.lower().endswith(".warc.gz")
-    ]
+        if fname.lower().endswith((".warc", ".warc.gz"))
+    ])
 
-    for i, warc_path in enumerate(warc_paths, 1):
-        print(f"[INFO] Procesando archivo {i}/{len(warc_paths)}: {warc_path}")
+    index = int(os.getenv("JOB_COMPLETION_INDEX", "0"))
+    total = int(os.getenv("JOB_COMPLETIONS", "1"))
+
+    my_warcs = split_work(warc_paths, index, total)
+
+    print(f"[INGESTOR] Pod {index}/{total} procesará {len(my_warcs)} archivos")
+
+    for i, warc_path in enumerate(my_warcs, 1):
+        print(f"[INFO] Procesando {i}/{len(my_warcs)}: {warc_path}")
+
         extracted = extract_html(warc_path)
         parsed = parse_html_many(extracted, max_workers=max_workers)
 
-        output_file = os.path.join(output_dir, f"news_{i}.json")
+        output_file = os.path.join(
+            output_dir,
+            f"news_{index}_{i}.json"
+        )
+
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(parsed, f, ensure_ascii=False, indent=2)
 
-        print(f"[INFO] Guardado en {output_file}")
+        print(f"[INFO] Guardado {output_file}")
+        
 
 if __name__ == "__main__":
     print("[INGESTOR] Starting ingestion process")

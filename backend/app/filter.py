@@ -6,6 +6,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import unicodedata
 import re
 
+JOB_INDEX = int(os.environ.get("JOB_COMPLETION_INDEX", "0"))
+JOB_TOTAL = int(os.environ.get("JOB_COMPLETIONS", "1"))
+
+def split_work(items, index, total):
+    return [item for i, item in enumerate(items) if i % total == index]
+
 
 def normalize_text(text: str) -> str:
     text = text.lower()
@@ -71,25 +77,33 @@ def filter_from_files(fname, input_dir="data/parsed", output_dir="data/filtered"
         return fname, 0
 
 def filter_many(input_dir="data/parsed", output_dir="data/filtered", max_workers=5):
-    os.makedirs(output_dir, exist_ok=True) 
-    
-    files = [f for f in os.listdir(input_dir) if f.endswith(".json")] 
-    total = len(files) 
-    print(f"[INFO] Se encontraron {total} archivos JSON en {input_dir}")
+    os.makedirs(output_dir, exist_ok=True)
+
+    files = sorted([f for f in os.listdir(input_dir) if f.endswith(".json")])
+
+    index = int(os.getenv("JOB_COMPLETION_INDEX", "0"))
+    total = int(os.getenv("JOB_COMPLETIONS", "1"))
+
+    my_files = split_work(files, index, total)
+
+    print(f"[FILTER] Pod {index}/{total} procesará {len(my_files)} archivos")
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(filter_from_files, fname): fname for fname in files}
+        futures = {
+            executor.submit(filter_from_files, fname): fname
+            for fname in my_files
+        }
 
         for i, future in enumerate(as_completed(futures), 1):
             fname = futures[future]
             try:
                 result = future.result()
                 if result[1] > 0:
-                    print(f"[{i}/{total}] Procesado {result[0]} → {result[1]} noticias filtradas")
+                    print(f"[{i}/{len(my_files)}] {result[0]} → {result[1]} noticias")
                 else:
-                    print(f"[{i}/{total}] Procesado {result[0]} → sin coincidencias, no se guardó archivo")
+                    print(f"[{i}/{len(my_files)}] {result[0]} → sin coincidencias")
             except Exception as e:
-                print(f"[{i}/{total}] Error en {fname}: {e}")
+                print(f"[ERROR] {fname}: {e}")
 
 if __name__ == "__main__":
     print("[FILTER] Starting filtering stage")

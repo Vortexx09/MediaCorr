@@ -1,7 +1,11 @@
 import os
 import yfinance as yf
 
-def download_icolcap_csv(_start="2024-01-01", _end="2025-01-01"):
+START = str(os.environ.get("START", "2024-01-01"))
+END = str(os.environ.get("END", "2025-01-01"))
+
+
+def download_icolcap_csv(_start=START, _end=END):
     output_dir = "data/market"
     output_file = "icolcap.csv"
     output_path = os.path.join(output_dir, output_file)
@@ -23,8 +27,8 @@ if __name__ == "__main__":
     print("[ICOLCAP] Downloading ICOLCAP data")
 
     download_icolcap_csv(
-        start_date="2024-01-01",
-        end_date="2025-01-01",
+        _start="2024-01-01",
+        _end="2025-01-01",
     )
 
     print("[ICOLCAP] ICOLCAP data saved")

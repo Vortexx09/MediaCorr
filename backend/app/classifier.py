@@ -2,128 +2,76 @@ import os
 import json
 from typing import List, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from pysentimiento import create_analyzer
 
 
-# Cargar modelo UNA sola vez (muy importante)
-analyzer = create_analyzer(
-    task="sentiment",
-    lang="es"
-)
+JOB_INDEX = int(os.environ.get("JOB_COMPLETION_INDEX", "0"))
+JOB_TOTAL = int(os.environ.get("JOB_COMPLETIONS", "1"))
 
 
-def normalize_score(output) -> float:
-    """
-    Convierte probabilidades del modelo a un score continuo [-1, 1]
-    """
-    probs = output.probas
+def split_work(items, index, total):
+    return [item for i, item in enumerate(items) if i % total == index]
 
-    pos = probs.get("POS", 0.0)
-    neg = probs.get("NEG", 0.0)
 
-    return round(pos - neg, 4)
+analyzer = create_analyzer(task="sentiment", lang="es")
+
+
+def normalize_score(output):
+    p = output.probas
+    return round(p.get("POS", 0.0) - p.get("NEG", 0.0), 4)
 
 
 def classify_record(record: Dict) -> Dict:
-    title = record.get("title") or ""
-    body = record.get("body") or ""
-
-    text = f"{title}. {body}".strip()
-
-    if not text or len(text.split()) < 20:
+    text = f"{record.get('title','')} {record.get('body','')}".strip()
+    if len(text.split()) < 20:
         record["sentiment_label"] = "neutral"
         record["sentiment_score"] = 0.0
         return record
 
     result = analyzer.predict(text)
-
-    label_map = {
+    record["sentiment_label"] = {
         "POS": "positive",
         "NEG": "negative",
         "NEU": "neutral"
-    }
-
-    record["sentiment_label"] = label_map.get(result.output, "neutral")
+    }.get(result.output, "neutral")
     record["sentiment_score"] = normalize_score(result)
-
     return record
 
 
-def classify_many(records: List[Dict], max_workers: int = 4) -> List[Dict]:
-    classified = []
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [
-            executor.submit(classify_record, record)
-            for record in records
-        ]
-
-        for future in as_completed(futures):
-            try:
-                classified.append(future.result())
-            except Exception as e:
-                print(f"[WARN] Error clasificando noticia: {e}")
-
-    return classified
-
-
-def analyze_file(
-    fname: str,
-    input_dir: str = "data/filtered",
-    output_dir: str = "data/sentiment",
-    max_workers: int = 4
+def analyze_many(
+    input_dir="data/filtered",
+    output_dir="data/sentiment",
+    max_workers=4
 ):
-    input_path = os.path.join(input_dir, fname)
+    files = sorted(f for f in os.listdir(input_dir) if f.endswith(".json"))
+    files = split_work(files, JOB_INDEX, JOB_TOTAL)
 
-    with open(input_path, "r", encoding="utf-8") as f:
-        records = json.load(f)
-
-    if not records:
-        return fname, 0
-
-    classified = classify_many(records, max_workers=max_workers)
+    print(f"[CLASSIFIER] Pod {JOB_INDEX+1}/{JOB_TOTAL} → {len(files)} archivos")
 
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, f"sentiment_{fname}")
 
-    with open(output_path, "w", encoding="utf-8") as f:
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {}
+        for fname in files:
+            futures[executor.submit(process_file, fname, input_dir, output_dir)] = fname
+
+        for f in as_completed(futures):
+            fname, count = f.result()
+            print(f"[OK] {fname} → {count} noticias")
+
+
+def process_file(fname, input_dir, output_dir):
+    with open(os.path.join(input_dir, fname)) as f:
+        records = json.load(f)
+
+    classified = [classify_record(r) for r in records]
+
+    out = os.path.join(output_dir, f"sentiment_{fname}")
+    with open(out, "w") as f:
         json.dump(classified, f, ensure_ascii=False, indent=2)
 
     return fname, len(classified)
 
 
-def analyze_many(
-    input_dir: str = "data/filtered",
-    output_dir: str = "data/sentiment",
-    max_workers: int = 4
-):
-    files = [f for f in os.listdir(input_dir) if f.endswith(".json")]
-    total = len(files)
-
-    print(f"[INFO] Se encontraron {total} archivos para análisis de sentimiento")
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(analyze_file, fname, input_dir, output_dir): fname
-            for fname in files
-        }
-
-        for i, future in enumerate(as_completed(futures), 1):
-            fname = futures[future]
-            try:
-                _, count = future.result()
-                print(f"[{i}/{total}] {fname} → {count} noticias clasificadas")
-            except Exception as e:
-                print(f"[{i}/{total}] Error en {fname}: {e}")
-
 if __name__ == "__main__":
-    print("[CLASSIFIER] Starting sentiment analysis")
-
-    analyze_many(
-        input_dir="data/filtered",
-        output_dir="data/sentiment",
-        max_workers=4
-    )
-
-    print("[CLASSIFIER] Sentiment analysis completed")
+    analyze_many()
