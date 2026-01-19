@@ -77,3 +77,7 @@ def get_sentiment_vs_market_plot():
 @app.get("/status/{job_name}")
 def get_status(job_name: str):
     return job_status(job_name)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

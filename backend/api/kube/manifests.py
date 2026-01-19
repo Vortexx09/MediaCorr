@@ -1,4 +1,10 @@
 from kubernetes import client
+import os
+
+ECR_REGISTRY = os.environ.get(
+    "ECR_REGISTRY",
+    "813469362433.dkr.ecr.us-east-1.amazonaws.com"
+)
 
 PVC_NAME = "mediacorr-pvc"
 
@@ -42,6 +48,7 @@ def base_job(
             parallelism=parallelism,
             completion_mode="Indexed",
             backoff_limit=1,
+            ttl_seconds_after_finished=5,
             template=client.V1PodTemplateSpec(
                 spec=client.V1PodSpec(
                     restart_policy="Never",
@@ -66,7 +73,7 @@ def base_job(
 def icolcap_job(_start, _end):
     return base_job(
         name="icolcap-job",
-        image="mediacorr-icolcap:latest",
+        image=f"{ECR_REGISTRY}/mediacorr-icolcap:latest",
         command=["python", "-m", "app.icolcap"],
         env={
             "START": _start,
@@ -78,7 +85,7 @@ def icolcap_job(_start, _end):
 def sources_job(_parallelism, _from, _to, _records):
     return base_job(
         name="sources-job",
-        image="mediacorr-sources:latest",
+        image=f"{ECR_REGISTRY}/mediacorr-sources:latest",
         command=["python", "-m", "app.sources"],
         parallelism=int(_parallelism),
         env={
@@ -91,7 +98,7 @@ def sources_job(_parallelism, _from, _to, _records):
 def ingestor_job(_parallelism):
     return base_job(
         name="ingestor-job",
-        image="mediacorr-ingestor:latest",
+        image=f"{ECR_REGISTRY}/mediacorr-ingestor:latest",
         command=["python", "-m", "app.ingestor"],
         parallelism=int(_parallelism)
     )
@@ -99,7 +106,7 @@ def ingestor_job(_parallelism):
 def filter_job(_parallelism):
     return base_job(
         name="filter-job",
-        image="mediacorr-filter:latest",
+        image=f"{ECR_REGISTRY}/mediacorr-filter:latest",
         command=["python", "-m", "app.filter"],
         parallelism=int(_parallelism)
     )
@@ -108,7 +115,7 @@ def filter_job(_parallelism):
 def classifier_job(_parallelism):
     return base_job(
         name="classifier-job",
-        image="mediacorr-classifier:latest",
+        image=f"{ECR_REGISTRY}/mediacorr-classifier:latest",
         command=["python", "-m", "app.classifier"],
         parallelism=int(_parallelism)
     )
@@ -117,7 +124,7 @@ def classifier_job(_parallelism):
 def correlator_job(_parallelism):
     return base_job(
         name="correlator-job",
-        image="mediacorr-correlator:latest",
+        image=f"{ECR_REGISTRY}/mediacorr-correlator:latest",
         command=["python", "-m", "app.correlator"],
         parallelism=int(_parallelism)
     )
