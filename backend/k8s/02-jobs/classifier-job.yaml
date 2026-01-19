@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: classifier-job
+  namespace: mediacorr
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: classifier
+        image: mediacorr-classifier:latest
+        imagePullPolicy: IfNotPresent
+        command: ["python", "-m", "app.classifier"]
+        env:
+        - name: MAX_WORKERS
+          valueFrom:
+            configMapKeyRef:
+              name: mediacorr-config
+              key: MAX_WORKERS
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: mediacorr-pvc

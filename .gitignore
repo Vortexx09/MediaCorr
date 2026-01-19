@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.venv
+venv/
+env/
+
+# Tu carpeta data
+data/
+
+# Otros comunes
+.DS_Store
+Thumbs.db
